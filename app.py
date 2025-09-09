@@ -12,6 +12,10 @@ def load_tickets():
             return json.load(f)
     return []
 
+def save_tickets(tickets):
+    with open(tickets_file, "w", encoding="utf-8") as f:
+        json.dump(tickets, f, indent=2)
+
 tickets = load_tickets()
 
 # Page config
@@ -62,7 +66,26 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # App title
-st.markdown('<div class="app-title">🎟 Customer Support Copilot</div>', unsafe_allow_html=True)
+st.markdown('<div class="app-title">Customer Support Copilot</div>', unsafe_allow_html=True)
+
+# Adding new ticket
+with st.expander("+ Add a New Ticket", expanded=False):
+    with st.form("new_ticket_form", clear_on_submit=True):
+        subject = st.text_input("Subject")
+        body = st.text_area("Body")
+        submitted = st.form_submit_button("Add Ticket")
+
+        if submitted:
+            ticket_number = int(tickets[-1]["id"].split("-")[1]) + 1
+            new_ticket = {
+                "id": f"TICKET-{ticket_number}",
+                "subject": subject if subject.strip() else "Untitled",
+                "body": body if body.strip() else "No content"
+            }
+            tickets.append(new_ticket)
+            save_tickets(tickets)
+            st.success(f"Ticket {new_ticket['id']} added successfully!")
+            st.rerun()
 
 # Display cards (2 columns)
 if tickets:
