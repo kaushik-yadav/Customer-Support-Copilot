@@ -108,6 +108,7 @@ def rag(query, collection_key, k = 5, fetch_k = 75):
         persist_directory=store_dir,
         embedding_function=embedding_function,
     )
+    # using MMR for better coverage and diversity
     docs = vectorstore.max_marginal_relevance_search(query, k=k, fetch_k=fetch_k)
 
     return [{"content": d.page_content, "url": d.metadata.get("url")} for d in docs]
@@ -130,6 +131,28 @@ def answer_with_context(query, docs):
     resp = model.generate_content(prompt)
     return resp.text.strip()
 
+# Classify query into developer, documentation or assign connector 
+def classify_query(query: str) -> str:
+    prompt = f"""
+    Classify the user query into one category:
+    - "developer" → API/SDK, code, tokens, SDK, GraphQL, custom integrations
+    - "documentation" → product features, how-to, best practices, SSO, built-in integrations
+    - "connector" → everything else
+    
+    Query: {query}
+    Answer with one word: developer, documentation, or connector.
+    
+        """
+    model = genai.GenerativeModel("models/gemini-2.5-flash-lite-preview-06-17")
+    resp = model.generate_content(prompt)
+    label = resp.text.strip().lower()
+    if "dev" in label:
+        return "developer"
+    elif "doc" in label:
+        return "documentation"
+    else:
+        return "connector"
+
 if __name__ == "__main__":
     # Build indices (only first run)
     for key, val in COLLECTIONS.items():
@@ -139,8 +162,18 @@ if __name__ == "__main__":
     q = """I've just had a new user, 'test.user@company.com', log in via our newly configured SSO. They were authenticated successfully, but they were not added to the 'Data Analysts' group as expected based on our SAML assertions. This is preventing them from accessing any assets. What could be the reason for this mis-assignment?."""
     results = rag(q, "developer")
     print(results)
+    # adding a label on it for better classification
+    label = classify_query(q)
+    print(f"\nClassified as: {label}")
 
-    # answering based on retrieved context
-    final_answer = answer_with_context(q, results)
-    print("\n--- FINAL ANSWER ---")
-    print(final_answer)
+    # if question is not answerable we assign it to a connector otherwise RAG + LLM answer
+    if label == "connector":
+        print("A connector will be assigned to you to solve your issue")
+    else:
+        # retrieve using RAG
+        results = rag(q, label)
+        # answering based on retrieved context
+        final_answer = answer_with_context(q, results)
+        print("\n--- FINAL ANSWER ---")
+        print(final_answer)
+
