@@ -153,7 +153,7 @@ def classify_query(query: str) -> str:
     else:
         return "connector"
 
-if __name__ == "__main__":
+def rag_answer(q):
     # Build indices (only first run)
     for key, val in COLLECTIONS.items():
         build_index(val["name"], val["file"])
@@ -169,6 +169,7 @@ if __name__ == "__main__":
     # if question is not answerable we assign it to a connector otherwise RAG + LLM answer
     if label == "connector":
         print("A connector will be assigned to you to solve your issue")
+        return "A connector will be assigned to you to solve your issue"
     else:
         # retrieve using RAG
         results = rag(q, label)
@@ -176,4 +177,4 @@ if __name__ == "__main__":
         final_answer = answer_with_context(q, results)
         print("\n--- FINAL ANSWER ---")
         print(final_answer)
-
+        return final_answer
