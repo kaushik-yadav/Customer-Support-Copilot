@@ -34,7 +34,7 @@ COLLECTIONS = {
 }
 
 # Helper: load + chunk JSON
-def load_json_file(file: str, chunk_size: int = 500, overlap: int = 50):
+def load_json_file(file, chunk_size = 500, overlap = 50):
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=chunk_size, chunk_overlap=overlap
     )
@@ -64,15 +64,16 @@ def load_json_file(file: str, chunk_size: int = 500, overlap: int = 50):
     print(f"[debug] Extracted {len(all_chunks)} chunks from {file}")
     return all_chunks
 
-def index_exists(vectorstore) -> bool:
+# checking if the indices exist or not in vectorstore
+def index_exists(vectorstore):
     try:
-        count = vectorstore._collection.count()  # low-level Chroma API
+        count = vectorstore._collection.count()
         return count > 0
     except Exception:
         return False
 
 # Build index for one collection
-def build_index(collection_name: str, file: str, batch_size: int = 1000):
+def build_index(collection_name, file, batch_size = 1000):
     store_dir = os.path.join(PERSIST_DIR, collection_name)
     vectorstore = Chroma(
         collection_name=collection_name,
@@ -85,24 +86,21 @@ def build_index(collection_name: str, file: str, batch_size: int = 1000):
         print(f"Skipping build for {collection_name}, already exists.")
         return
 
-    print("-- Started chunking")
     chunks = load_json_file(file)
-    print("-- Chunking done")
+
     texts = [c["content"] for c in chunks]
     metadatas = [{"url": c["url"], "doc_id": c["doc_id"]} for c in chunks]
     ids = [c["doc_id"] for c in chunks]
-    print("-- Batch indexing started")
     for i in range(0, len(texts), batch_size):
         batch_texts = texts[i:i+batch_size]
         batch_meta = metadatas[i:i+batch_size]
         batch_ids = ids[i:i+batch_size]
         vectorstore.add_texts(texts=batch_texts, metadatas=batch_meta, ids=batch_ids)
-    print("-- Indexing done")
-    print(f"✅ Indexed {len(chunks)} chunks into {collection_name}.")
+    print(f"Indexed {len(chunks)} chunks into {collection_name}.")
 
 
 # RAG search
-def rag(query: str, collection_key: str, k: int = 5, fetch_k: int = 75) -> List[Dict]:
+def rag(query, collection_key, k = 5, fetch_k = 75):
     col = COLLECTIONS[collection_key]
     store_dir = os.path.join(PERSIST_DIR, col["name"])
     vectorstore = Chroma(
@@ -114,14 +112,35 @@ def rag(query: str, collection_key: str, k: int = 5, fetch_k: int = 75) -> List[
 
     return [{"content": d.page_content, "url": d.metadata.get("url")} for d in docs]
 
+# Answer based on context (using gemini flash model)
+def answer_with_context(query, docs):
+    context = "\n\n".join([f"Source: {d['url']}\nContent: {d['content']}" for d in docs])
+    prompt = f"""
+    You are a support assistant. Use the provided context to answer the user's query.Also give the proper urls for citations.
+    Query: {query}
+
+    Context:
+    {context}
+
+    If the context fully answers the question, provide a concise answer.
+    If not, respond only with:
+    "(reply something that you dont know the answer followed by) A connector will be assigned to solve your issue."
+    """
+    model = genai.GenerativeModel("models/gemini-2.5-flash-lite-preview-06-17")
+    resp = model.generate_content(prompt)
+    return resp.text.strip()
+
 if __name__ == "__main__":
     # Build indices (only first run)
-    print("-- Building indices")
     for key, val in COLLECTIONS.items():
         build_index(val["name"], val["file"])
-    print("-- Indices built")
+
     # Example query
     q = """I've just had a new user, 'test.user@company.com', log in via our newly configured SSO. They were authenticated successfully, but they were not added to the 'Data Analysts' group as expected based on our SAML assertions. This is preventing them from accessing any assets. What could be the reason for this mis-assignment?."""
     results = rag(q, "developer")
     print(results)
-    print("-- Retrieval done")
+
+    # answering based on retrieved context
+    final_answer = answer_with_context(q, results)
+    print("\n--- FINAL ANSWER ---")
+    print(final_answer)
