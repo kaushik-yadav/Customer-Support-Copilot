@@ -1,103 +1,106 @@
 import json
 import os
+from pathlib import Path
 
 import streamlit as st
 
-# Load JSON tickets
-tickets_file = "tickets/sample_tickets.json"
+from model import analyze
+from rag import rag_answer
 
-def load_tickets():
-    if os.path.exists(tickets_file):
-        with open(tickets_file, "r", encoding="utf-8") as f:
+# File paths
+TICKETS_DIR = Path("tickets")
+ANALYSIS_DIR = Path("analysis")
+SAMPLE_FILE = TICKETS_DIR / "sample_tickets.json"
+ANALYSIS_FILE = ANALYSIS_DIR / "analysis_tickets.json"
+
+# Ensure dirs
+TICKETS_DIR.mkdir(parents=True, exist_ok=True)
+ANALYSIS_DIR.mkdir(parents=True, exist_ok=True)
+
+def load_json(file):
+    if file.exists():
+        with file.open("r") as f:
             return json.load(f)
     return []
 
-def save_tickets(tickets):
-    with open(tickets_file, "w", encoding="utf-8") as f:
-        json.dump(tickets, f, indent=2)
+def save_json(file, data):
+    with file.open("w") as f:
+        json.dump(data, f, indent=2)
 
-tickets = load_tickets()
-
-# Page config
-st.set_page_config(page_title="Customer Support Copilot", layout="wide")
-
-# Custom CSS for styling (using Card style styling)
-st.markdown("""
-    <style>
-    .app-title {
-        text-align: center;
-        font-size: 36px;
-        font-weight: 700;
-        color: #2563EB;
-        margin-bottom: 30px;
+def run_analysis(ticket):
+    text = ticket["subject"] + " " + ticket["body"]
+    raw = analyze(text)
+    return {
+        "tags": raw.topic_tags,
+        "sentiment": raw.sentiment,
+        "priority": raw.priority,
     }
-    .card {
-        background-color: #ffffff;
-        border-radius: 15px;
-        box-shadow: 0px 4px 12px rgba(0,0,0,0.1);
-        padding: 20px;
-        margin: 10px;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-        height: 18rem;
-    }
-    .card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0px 8px 20px rgba(0,0,0,0.15);
-    }
-    .ticket-id {
-        font-size: 14px;
-        font-weight: bold;
-        color: #6B7280;
-        margin-bottom: 1rem;
-    }
-    .ticket-subject {
-        font-size: 20px;
-        font-weight: 600;
-        color: #111827;
-        margin-bottom: 1rem;
-        margin-top: 1rem;
-    }
-    .ticket-body {
-        font-size: 16px;
-        color: #374151;
-        line-height: 1.5;
-    }
-    </style>
-""", unsafe_allow_html=True)
 
-# App title
-st.markdown('<div class="app-title">Customer Support Copilot</div>', unsafe_allow_html=True)
+# Badge styling
+def badge(text, color="#7c5cff"):
+    return f'<span style="background-color:{color};color:white;padding:4px 10px;border-radius:12px;margin-right:4px;font-size:12px;">{text}</span>'
 
-# Adding new ticket
-with st.expander("+ Add a New Ticket", expanded=False):
-    with st.form("new_ticket_form", clear_on_submit=True):
-        subject = st.text_input("Subject")
-        body = st.text_area("Body")
-        submitted = st.form_submit_button("Add Ticket")
+priority_colors = {"P0": "#ff5f6d", "P1": "#ff9966", "P2": "#7c5cff"}
+sentiment_colors = {
+    "Frustrated": "#ff4c4c",
+    "Angry": "#ff0000",
+    "Curious": "#4cc9f0",
+    "Neutral": "#999999",
+    "Unknown": "#777777",
+}
 
-        if submitted:
-            ticket_number = int(tickets[-1]["id"].split("-")[1]) + 1
-            new_ticket = {
-                "id": f"TICKET-{ticket_number}",
-                "subject": subject if subject.strip() else "Untitled",
-                "body": body if body.strip() else "No content"
-            }
-            tickets.append(new_ticket)
-            save_tickets(tickets)
-            st.success(f"Ticket {new_ticket['id']} added successfully!")
-            st.rerun()
+# Load base + analyzed tickets
+sample_tickets = load_json(SAMPLE_FILE)
+analyzed_tickets = load_json(ANALYSIS_FILE)
 
-# Display cards (2 columns)
-if tickets:
-    cols = st.columns(2)
-    for i, ticket in enumerate(tickets):
-        with cols[i % 2]:
-            st.markdown(f"""
-                <div class="card">
-                    <div class="ticket-id">#{ticket.get("id", "Unknown")}</div>
-                    <div class="ticket-subject">{ticket.get("subject", "No Subject")}</div>
-                    <div class="ticket-body">{ticket.get("body", "No Body")}</div>
-                </div>
-            """, unsafe_allow_html=True)
-else:
-    st.warning("No tickets found. Please check if 'tickets/sample_tickets.json' exists.")
+# Merge (new tickets only if not in analysis yet)
+existing_subjects = {t["subject"] for t in analyzed_tickets}
+for t in sample_tickets:
+    if t["subject"] not in existing_subjects:
+        analyzed_tickets.append(t)
+
+# UI
+st.title("Customer Support Copilot")
+
+# Add new ticket
+with st.sidebar:
+    st.header("Add New Ticket")
+    subj = st.text_input("Subject")
+    body = st.text_area("Body")
+    if st.button("Save Ticket"):
+        if subj and body:
+            new_ticket = {"subject": subj, "body": body}
+            analyzed_tickets.append(new_ticket)
+            save_json(ANALYSIS_FILE, analyzed_tickets)
+            st.success("Ticket saved! Will be analyzed soon.")
+
+# Dashboard
+st.subheader("📋 Ticket Dashboard")
+
+for i, t in enumerate(analyzed_tickets, 1):
+    st.markdown(f"### Ticket {i}: {t['subject']}")
+    st.write(t["body"])
+
+    # If no analysis yet -> run now & save immediately
+    if "analysis" not in t:
+        with st.spinner("Analyzing..."):
+            t["analysis"] = run_analysis(t)
+            save_json(ANALYSIS_FILE, analyzed_tickets)
+
+    analysis = t["analysis"]
+
+    # Tags
+    tag_html = " ".join([badge(tag, "#4cc9f0") for tag in analysis["tags"]])
+    st.markdown(f"**Tags:** {tag_html}", unsafe_allow_html=True)
+
+    # Sentiment
+    st.markdown(
+        f"**Sentiment:** {badge(analysis['sentiment'], sentiment_colors.get(analysis['sentiment'], '#777'))}",
+        unsafe_allow_html=True,
+    )
+
+    # Priority
+    st.markdown(
+        f"**Priority:** {badge(analysis['priority'], priority_colors.get(analysis['priority'], '#7c5cff'))}",
+        unsafe_allow_html=True,
+    )
