@@ -4,7 +4,7 @@ from pathlib import Path
 import streamlit as st
 
 from model import analyze
-from rag import rag_answer
+from rag_system.pipeline import rag_answer
 
 # File paths
 TICKETS_DIR = Path("tickets")
@@ -76,7 +76,7 @@ sentiment_colors = {
 # Ticket Answer + Human Feedback
 def handle_ticket_answer(ticket_id):
     """Stable Streamlit ticket handler with RAG answer and feedback."""
-    
+    testing = True
     tickets = load_json(ANALYSIS_FILE)
     ticket_index = next((i for i, t in enumerate(tickets) if t["id"] == ticket_id), None)
     if ticket_index is None:
@@ -86,7 +86,7 @@ def handle_ticket_answer(ticket_id):
 
     # Skip RAG if status is Resolved
     if ticket.get("status") == "Resolved":
-        st.info("Ticket already resolved.")
+        st.info("Ticket already resolved and added to ticket dashboard")
         return
 
     # Keys for session_state
@@ -138,38 +138,43 @@ def handle_ticket_answer(ticket_id):
         if any(tag in ["How-to", "Product", "Best practices", "API/SDK", "SSO"] for tag in tags):
             st.warning("No answer found in knowledge base.")
         else:
-            st.warning(f"ℹ️ Ticket classified as '{', '.join(tags)}'; routed to appropriate team.")
-
-    # Feedback section
-    st.session_state.setdefault(feedback_key, None)
-    
-    # Only show buttons if no feedback has been given yet
-    if st.session_state.get(feedback_key) is None:
-        col1, col2 = st.columns(2)
-        yes_clicked = col1.button("✅ YES", key=f"yes_{ticket_id}")
-        no_clicked  = col2.button("❌ No, still an issue", key=f"no_{ticket_id}")
-
-        if yes_clicked:
-            st.session_state[feedback_key] = "resolved"
-            ticket["status"] = "Resolved"
+            st.warning(f"ℹ️ Ticket classified as '{', '.join(tags)}'; routed to appropriate team and ticket raised in ticket dashboard")
+            ticket['answer'] = f"Ticket classified as '{', '.join(tags)}'; routed to appropriate team"
+            ticket['status'] = 'Rerouted'
             tickets[ticket_index] = ticket
             save_json(ANALYSIS_FILE, tickets)
-            st.success("✅ Ticket marked as Resolved and added to the dashboard.")
-            st.rerun()
+            testing = False
+    if testing:
+        # Feedback section
+        st.session_state.setdefault(feedback_key, None)
 
-        if no_clicked:
-            st.session_state[feedback_key] = "rerouted"
-            ticket["status"] = "Rerouted"
-            tickets[ticket_index] = ticket
-            save_json(ANALYSIS_FILE, tickets)
-            st.warning("❌ Ticket has been Rerouted and added to the dashboard.")
-            st.rerun()
-    else:
-        # Show status message after feedback
-        if st.session_state[feedback_key] == "resolved":
-            st.success("✅ Ticket marked as Resolved and added to the dashboard.")
+        # Only show buttons if no feedback has been given yet
+        if st.session_state.get(feedback_key) is None:
+            col1, col2 = st.columns(2)
+            yes_clicked = col1.button("✅ YES", key=f"yes_{ticket_id}")
+            no_clicked  = col2.button("❌ No, still an issue", key=f"no_{ticket_id}")
+
+            if yes_clicked:
+                st.session_state[feedback_key] = "resolved"
+                ticket["status"] = "Resolved"
+                tickets[ticket_index] = ticket
+                save_json(ANALYSIS_FILE, tickets)
+                st.success("✅ Ticket marked as Resolved and added to the dashboard.")
+                st.rerun()
+
+            if no_clicked:
+                st.session_state[feedback_key] = "rerouted"
+                ticket["status"] = "Rerouted"
+                tickets[ticket_index] = ticket
+                save_json(ANALYSIS_FILE, tickets)
+                st.warning("❌ Ticket has been Rerouted and added to the dashboard.")
+                st.rerun()
         else:
-            st.warning("❌ Ticket has been Rerouted and added to the dashboard.")
+            # Show status message after feedback
+            if st.session_state[feedback_key] == "resolved":
+                st.success("✅ Ticket marked as Resolved and added to the dashboard.")
+            else:
+                st.warning("❌ Ticket has been Rerouted and added to the dashboard.")
 
 # Load base + analyzed tickets
 sample_tickets = load_json(SAMPLE_FILE)
