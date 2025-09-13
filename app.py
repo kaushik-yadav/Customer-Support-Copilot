@@ -147,7 +147,7 @@ def handle_ticket_answer(ticket_id):
     if st.session_state.get(feedback_key) is None:
         col1, col2 = st.columns(2)
         yes_clicked = col1.button("✅ YES", key=f"yes_{ticket_id}")
-        no_clicked  = col2.button("❌ NO", key=f"no_{ticket_id}")
+        no_clicked  = col2.button("❌ No, still an issue", key=f"no_{ticket_id}")
 
         if yes_clicked:
             st.session_state[feedback_key] = "resolved"
@@ -248,13 +248,13 @@ if page == "📋 Ticket Dashboard":
                 st.session_state.setdefault(feedback_key, None)
                 if st.session_state.get(feedback_key) is None:
                     col1, col2 = st.columns(2)
-                    if col1.button("✅ YES", key=f"yes_{t['id']}"):
+                    if col1.button("✅ Yes, this helped", key=f"yes_{t['id']}"):
                         st.success("✅ Marked as Resolved")
                         st.session_state[feedback_key] = "resolved"
                         t["status"] = "Resolved"
                         save_json(ANALYSIS_FILE, analyzed_tickets)
                         st.rerun()
-                    if col2.button("❌ NO", key=f"no_{t['id']}"):
+                    if col2.button("❌ No, still an issue", key=f"no_{t['id']}"):
                         st.warning("❌ Has been Rerouted")
                         st.session_state[feedback_key] = "rerouted"
                         t["status"] = "Rerouted"
