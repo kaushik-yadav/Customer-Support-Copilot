@@ -1,4 +1,5 @@
 import os
+import sys
 
 from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -56,4 +57,5 @@ def rag_search(query, collection_key, k=4, fetch_k=75):
     # using MMR for better coverage and diversity
     docs = vectorstore.max_marginal_relevance_search(query, k=k, fetch_k=fetch_k)
 
+    return [{"content": d.page_content, "url": d.metadata.get("url")} for d in docs]
     return [{"content": d.page_content, "url": d.metadata.get("url")} for d in docs]

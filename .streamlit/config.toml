@@ -1,0 +1,5 @@
+# Disable file watcher to avoid "inotify instance limit reached"
+[server]
+fileWatcherType = "none"
+headless = true
+enableCORS = false

@@ -1,10 +1,11 @@
 import google.generativeai as genai
 
-from rag_system.config import GOOGLE_API_KEY
+from rag_system.config import get_rag_key
+
+from .config import get_rag_key
 
 # Configure Gemini
-if GOOGLE_API_KEY:
-    genai.configure(api_key=GOOGLE_API_KEY)
+genai.configure(api_key=get_rag_key())
 
 def answer_with_context(query, docs):
     context = "\n\n".join([f"Source: {d['url']}\nContent: {d['content']}" for d in docs])
