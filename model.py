@@ -1,14 +1,15 @@
 import json
-import os
 import re
 from typing import List
 
 import google.generativeai as genai
-from dotenv import load_dotenv
 from pydantic import BaseModel, ValidationError
 
-load_dotenv()
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+# Import the classification key fetcher
+from config import get_classification_key
+
+# Configure Gemini with classification key
+genai.configure(api_key=get_classification_key())
 
 def analyze(ticket_text):
     # creating a class using pydantic basemodel
@@ -51,4 +52,5 @@ def analyze(ticket_text):
             priority=priority[0].strip() if priority else ""
         )
         return ticket_analysis
+
 

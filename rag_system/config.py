@@ -4,13 +4,18 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# API config
-GOOGLE_API_KEY = os.getenv("GEMINI_KEY")
+def get_rag_key():
+    """Return API key for RAG pipeline"""
+    try:
+        import streamlit as st
+        return st.secrets["GEMINI_KEY"]
+    except Exception:
+        return os.getenv("GEMINI_KEY")
+
 
 # directory for chroma store (embeddings + indices storing)
 PERSIST_DIR = "./chroma_store"
 
-# File mapping to collection
 COLLECTIONS = {
     "developer": {
         "name": "atlan_developer",
@@ -21,3 +26,4 @@ COLLECTIONS = {
         "file": "knowledge_base/atlan_documentation.json"
     },
 }
+
