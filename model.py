@@ -11,6 +11,7 @@ load_dotenv()
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 def analyze(ticket_text):
+    # creating a class using pydantic basemodel
     class TicketAnalysis(BaseModel):
         topic_tags: List[str]
         sentiment: str
@@ -21,7 +22,7 @@ def analyze(ticket_text):
 
     full_prompt = prompt_template.replace("{INSERT_TICKET_HERE}", ticket_text)
 
-    model = genai.GenerativeModel("models/gemini-2.5-flash")
+    model = genai.GenerativeModel("gemini-2.0-flash-lite")
     response = model.generate_content(full_prompt)
     llm_output = response.text.strip()
     print("Raw LLM output:\n", llm_output)
