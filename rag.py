@@ -137,14 +137,12 @@ def answer_with_context(query, docs):
 # Classify query into developer, documentation to better classify for RAG
 def classify_query(query: str) -> str:
     prompt = f"""
-    Classify the user query into one category:
-    - "developer" -> API/SDK, code, tokens, SDK, GraphQL, custom integrations
-    - "documentation"-> product features, how-to, best practices, SSO, built-in integrations
-    
-    Query: {query}
-    Answer with one word: developer, documentation.
-    
-        """
+        Given the user query, decide whether it should be answered using the developer knowledge base (technical API / SDK / code-focused content) or the documentation knowledge base (user guides, best practices, feature overviews).
+        If the query involves implementation details, dev errors, or code usage, choose developer.
+        If it involves product usage, configuration, or administrative guidance, choose documentation.
+        Query: {query}
+        Answer with one word: developer, documentation.
+    """
     model = genai.GenerativeModel("models/gemini-2.5-flash-lite-preview-06-17")
     resp = model.generate_content(prompt)
     label = resp.text.strip().lower()
