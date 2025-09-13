@@ -1,7 +1,7 @@
 import json
 import os
 import uuid
-from typing import Dict, List
+from time import time
 
 import google.generativeai as genai
 from dotenv import load_dotenv
@@ -10,7 +10,7 @@ from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 
 load_dotenv()
-GOOGLE_API_KEY = os.getenv("GEMINI_API_KEY")
+GOOGLE_API_KEY = os.getenv("GEMINI_KEY")
 genai.configure(api_key=GOOGLE_API_KEY)
 
 # Directories
@@ -100,7 +100,7 @@ def build_index(collection_name, file, batch_size = 1000):
 
 
 # RAG search
-def rag(query, collection_key, k = 5, fetch_k = 75):
+def rag(query, collection_key, k = 4, fetch_k = 75):
     col = COLLECTIONS[collection_key]
     store_dir = os.path.join(PERSIST_DIR, col["name"])
     vectorstore = Chroma(
@@ -117,30 +117,32 @@ def rag(query, collection_key, k = 5, fetch_k = 75):
 def answer_with_context(query, docs):
     context = "\n\n".join([f"Source: {d['url']}\nContent: {d['content']}" for d in docs])
     prompt = f"""
-    You are a support assistant. Use the provided context to answer the user's query.Also give the proper urls for citations.
+    You are a customer support assistant. Use the provided context to answer the user's query but dont mention about any context/documentation in the answer. NO greetings needed just provide the answer trhough context given. Include proper URLs for citations where relevant.
+
     Query: {query}
 
     Context:
     {context}
 
-    If the context fully answers the question, provide a concise answer.
-    If not, respond only with:
-    "(reply something that you dont know the answer followed by) A connector will be assigned to solve your issue."
+    NOTE: Do NOT mention context, documentation, or technical sources.
+    - If the context fully answers, give a concise, friendly response with citations.
+    - **STRICTLY** : ALWAYS PROVIDE CITATIONS.
+    - If not, politely say you don’t have the answer and assure: "Your ticket is recorded and will be sent to the appropriate team."
     """
+
     model = genai.GenerativeModel("models/gemini-2.5-flash-lite-preview-06-17")
     resp = model.generate_content(prompt)
     return resp.text.strip()
 
-# Classify query into developer, documentation or assign connector 
+# Classify query into developer, documentation to better classify for RAG
 def classify_query(query: str) -> str:
     prompt = f"""
     Classify the user query into one category:
-    - "developer" → API/SDK, code, tokens, SDK, GraphQL, custom integrations
-    - "documentation" → product features, how-to, best practices, SSO, built-in integrations
-    - "connector" → everything else
+    - "developer" -> API/SDK, code, tokens, SDK, GraphQL, custom integrations
+    - "documentation"-> product features, how-to, best practices, SSO, built-in integrations
     
     Query: {query}
-    Answer with one word: developer, documentation, or connector.
+    Answer with one word: developer, documentation.
     
         """
     model = genai.GenerativeModel("models/gemini-2.5-flash-lite-preview-06-17")
@@ -148,33 +150,30 @@ def classify_query(query: str) -> str:
     label = resp.text.strip().lower()
     if "dev" in label:
         return "developer"
-    elif "doc" in label:
-        return "documentation"
     else:
-        return "connector"
+        return "documentation"
 
 def rag_answer(q):
+    start = time()
     # Build indices (only first run)
     for key, val in COLLECTIONS.items():
         build_index(val["name"], val["file"])
 
-    # Example query
-    q = """I've just had a new user, 'test.user@company.com', log in via our newly configured SSO. They were authenticated successfully, but they were not added to the 'Data Analysts' group as expected based on our SAML assertions. This is preventing them from accessing any assets. What could be the reason for this mis-assignment?."""
-    results = rag(q, "developer")
-    print(results)
+    
     # adding a label on it for better classification
     label = classify_query(q)
     print(f"\nClassified as: {label}")
-
-    # if question is not answerable we assign it to a connector otherwise RAG + LLM answer
-    if label == "connector":
-        print("A connector will be assigned to you to solve your issue")
-        return "A connector will be assigned to you to solve your issue"
-    else:
-        # retrieve using RAG
+    results = rag(q, label)
+    print(results)
+    try:
         results = rag(q, label)
         # answering based on retrieved context
         final_answer = answer_with_context(q, results)
         print("\n--- FINAL ANSWER ---")
         print(final_answer)
+        end = time()
+        print(end-start)
         return final_answer
+    except Exception as e:
+        print("Exception occured :",e)
+        return
