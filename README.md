@@ -135,7 +135,7 @@ streamlit run app.py
 
 
 ```toml
-// Using Two gemini models so as to avoid rate limiting (Will change it in future) 
+# Using Two gemini models so as to avoid rate limiting (Will change it in future) 
 GEMINI_KEY = "your-key"
 GEMINI_API_KEY = "your-key"
 ```
@@ -234,8 +234,10 @@ We evaluated both **classification accuracy** and **RAG answer quality** to asse
 
 **Flow:**
 Ticket → `model.py` classify → RAG pipeline (`rag_system/`) if applicable → answer with citations OR routing message → Streamlit dashboard.
-
-*(See `assets/architecture.png` for full diagram)*
+**Visual Architecture:**
+<div align="center">
+  <img src="architecture.svg" alt="Architecture Diagram" height="900" width="900"/>
+</div>
 
 ---
 
@@ -257,13 +259,4 @@ Ticket → `model.py` classify → RAG pipeline (`rag_system/`) if applicable �
 
 * **Code Repo (GitHub)**: https://github.com/kaushik-yadav/Customer-Support-Copilot
 * **Live Demo (Streamlit)**: https://customer-support-copilot-atlan.streamlit.app/
-* **Architecture Diagram**: `architecture.png`
-
----
-
-## 👥 Authors
-
-* Your Name — [GitHub](https://github.com/kaushik-yadav) — [Mail](mailto:kaushiky005@gmail.com)
----
-tom (DB integration, real-time monitoring, multi-language support, fine-tuning a classification model), so it looks even stronger for evaluation panels?
-```
+* **Architecture Diagram**: 'architecture.svg'
