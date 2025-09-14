@@ -18,7 +18,8 @@ def answer_with_context(query, docs):
         {context}
     
         NOTE: Do NOT mention context, documentation, or technical sources.
-        - If the context fully answers, give a concise, friendly response with citations.
+        - ADD A SEPERATE SECTION TO SHOW THE CITATIONS
+        - If the context fully answers, give a concise, friendly response with **citations** with detailed responses.
         - **STRICTLY** : ALWAYS PROVIDE CITATIONS.
         - If not, politely say you don't have the answer and assure: "Your ticket is recorded and will be sent to the appropriate team."
     """

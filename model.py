@@ -3,15 +3,18 @@ import re
 from typing import List
 
 import google.generativeai as genai
+import streamlit as st
 from pydantic import BaseModel, ValidationError
 
-# Import the classification key fetcher
 from config import get_classification_key
 
-# Configure Gemini with classification key
-genai.configure(api_key=get_classification_key())
+
+def init_gemini():
+    api_key = get_classification_key()
+    genai.configure(api_key=api_key)
 
 def analyze(ticket_text):
+    init_gemini()
     # creating a class using pydantic basemodel
     class TicketAnalysis(BaseModel):
         topic_tags: List[str]
@@ -52,5 +55,7 @@ def analyze(ticket_text):
             priority=priority[0].strip() if priority else ""
         )
         return ticket_analysis
+
+
 
 

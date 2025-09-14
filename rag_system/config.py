@@ -13,8 +13,8 @@ def get_rag_key():
         return os.getenv("GEMINI_KEY")
 
 
-# directory for chroma store (embeddings + indices storing)
-PERSIST_DIR = "./chroma_store"
+# directory for FAISS store (embeddings + indices storing)
+PERSIST_DIR = "./faiss_store"
 
 COLLECTIONS = {
     "developer": {

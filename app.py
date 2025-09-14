@@ -93,21 +93,19 @@ def handle_ticket_answer(ticket_id):
     answer_key = f"answer_{ticket_id}"
     feedback_key = f"feedback_{ticket_id}"
 
-    # Use stored answer if Answered, else compute RAG
     tags = ticket.get("analysis", {}).get("tags", [])
 
+    # Case 1: Already answered → just use stored answer
     if ticket.get("status") == "Answered" and ticket.get("answer"):
-        # Use stored answer
-        st.info(ticket["answer"])
         st.session_state[answer_key] = ticket["answer"]
 
+    # Case 2: Open → run RAG if not already stored
     elif ticket.get("status") == "Open" or answer_key not in st.session_state:
-        # Ensure tags exist
         if not tags:
             st.warning("Ticket analysis not ready yet. Please try again in a moment.")
             return
 
-        # Only run RAG for Open tickets and relevant tags
+        # Only run RAG for supported tags
         if any(tag in ["How-to", "Product", "Best practices", "API/SDK", "SSO"] for tag in tags):
             with st.spinner("Finding answer..."):
                 try:
@@ -128,13 +126,11 @@ def handle_ticket_answer(ticket_id):
         tickets[ticket_index] = ticket
         save_json(ANALYSIS_FILE, tickets)
 
-
-    # Display stored or computed answer
+    # ---- Display answer (only once) ----
     stored_answer = st.session_state.get(answer_key)
     if stored_answer:
         st.info(stored_answer)
     else:
-        tags = ticket.get("analysis", {}).get("tags", [])
         if any(tag in ["How-to", "Product", "Best practices", "API/SDK", "SSO"] for tag in tags):
             st.warning("No answer found in knowledge base.")
         else:
@@ -144,14 +140,14 @@ def handle_ticket_answer(ticket_id):
             tickets[ticket_index] = ticket
             save_json(ANALYSIS_FILE, tickets)
             testing = False
-    if testing:
-        # Feedback section
+
+    # ---- Feedback section ----
+    if testing and stored_answer:
         st.session_state.setdefault(feedback_key, None)
 
-        # Only show buttons if no feedback has been given yet
         if st.session_state.get(feedback_key) is None:
             col1, col2 = st.columns(2)
-            yes_clicked = col1.button("✅ YES", key=f"yes_{ticket_id}")
+            yes_clicked = col1.button("✅ YES, this helped", key=f"yes_{ticket_id}")
             no_clicked  = col2.button("❌ No, still an issue", key=f"no_{ticket_id}")
 
             if yes_clicked:
@@ -170,11 +166,11 @@ def handle_ticket_answer(ticket_id):
                 st.warning("❌ Ticket has been Rerouted and added to the dashboard.")
                 st.rerun()
         else:
-            # Show status message after feedback
             if st.session_state[feedback_key] == "resolved":
                 st.success("✅ Ticket marked as Resolved and added to the dashboard.")
             else:
                 st.warning("❌ Ticket has been Rerouted and added to the dashboard.")
+
 
 # Load base + analyzed tickets
 sample_tickets = load_json(SAMPLE_FILE)
@@ -238,45 +234,23 @@ if page == "📋 Ticket Dashboard":
         # Show the answer button for all tickets except Open's feedback handled in handle_ticket_answer
         if st.button(btn_text, key=f"answer_btn_{t['id']}"):
             st.session_state[show_key] = True
-
         if st.session_state[show_key]:
-            # For Open : RAG + feedback
-            if t.get("status") == "Open":
+            ticket_status = t.get("status")
+
+            if ticket_status in ["Open", "Answered"]:
+                # Let handle_ticket_answer handle both RAG + feedback
                 handle_ticket_answer(t["id"])
-            # For Answered : show JSON answer + feedback buttons
-            elif t.get("status") == "Answered":
-                stored_answer = t.get("answer")
-                if stored_answer:
-                    st.info(stored_answer)
-                # Feedback buttons
-                feedback_key = f"feedback_{t['id']}"
-                st.session_state.setdefault(feedback_key, None)
-                if st.session_state.get(feedback_key) is None:
-                    col1, col2 = st.columns(2)
-                    if col1.button("✅ Yes, this helped", key=f"yes_{t['id']}"):
-                        st.success("✅ Marked as Resolved")
-                        st.session_state[feedback_key] = "resolved"
-                        t["status"] = "Resolved"
-                        save_json(ANALYSIS_FILE, analyzed_tickets)
-                        st.rerun()
-                    if col2.button("❌ No, still an issue", key=f"no_{t['id']}"):
-                        st.warning("❌ Has been Rerouted")
-                        st.session_state[feedback_key] = "rerouted"
-                        t["status"] = "Rerouted"
-                        save_json(ANALYSIS_FILE, analyzed_tickets)
-                        st.rerun()
-                else:
-                    if st.session_state[feedback_key] == "resolved":
-                        st.success("✅ Marked as Resolved")
-                    elif st.session_state[feedback_key] == "rerouted":
-                        st.warning("❌ Has been Rerouted")
-            # For Rerouted or Resolved : only show JSON answer, no feedback buttons
-            else:
+
+            elif ticket_status in ["Rerouted", "Resolved"]:
+                # Just show stored answer, no feedback
                 stored_answer = t.get("answer")
                 if stored_answer:
                     st.info(stored_answer)
                 else:
                     st.warning("No answer available for this ticket.")
+
+
+
 
 # Add a Ticket
 elif page == "➕ Add a Ticket":
