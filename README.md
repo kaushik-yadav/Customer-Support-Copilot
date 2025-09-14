@@ -300,5 +300,4 @@ Ticket → `model.py` classify → RAG pipeline (`rag_system/`) if applicable �
 ## 📥 Deliverables
 
 * **Code Repo (GitHub)**: https://github.com/kaushik-yadav/Customer-Support-Copilot
-* **Live Demo (Streamlit)**: https://customer-support-copilot-atlan.streamlit.app/
 * **Architecture Diagram**: 'architecture.svg'
