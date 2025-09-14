@@ -103,27 +103,69 @@ requirements.txt            # Dependencies
 
 ---
 
-## ⚙️ Setup & Running Locally
+## ⚙️ Running Instructions
 
-### 1. Clone repo
+#### Prerequisites
+- Python 3.10 or higher installed
+- Git installed
+
+---
+
+### 1. Clone the Repository
 ```bash
 git clone https://github.com/kaushik-yadav/Customer-Support-Copilot.git
 cd Customer-Support-Copilot
 ````
 
-### 2. Create environment & install dependencies
+### 2. Create Virtual Environment & Install Dependencies
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate   # or .venv\Scripts\activate on Windows
+source .venv/bin/activate   # On Windows use: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
-### 3. Run app
+
+### 3. Prebuilt FAISS Indices
+
+The FAISS indices for Developer and Documentation KB are already included in `faiss_store/`.
+
+No need to rebuild them; ready for immediate testing.
+
+### 4. Set Secrets / Gemini API Keys
+
+Two Gemini API keys are recommended to avoid hitting rate limits:
+
+```text
+GEMINI_KEY=your-first-gemini-key
+GEMINI_API_KEY=your-second-gemini-key
+```
+
+* **Locally** → add keys to a `.env` file
+* **Streamlit Cloud** → set in Streamlit Secrets (`.streamlit/secrets.toml`)
+
+> Note: In the future, these can be swapped for a different LLM model; Gemini is preferred for fast setup and low-latency testing.
+
+### 5. Run the Streamlit App
 
 ```bash
 streamlit run app.py
 ```
+
+### 6. Usage
+
+1. Navigate between the **Ticket Dashboard** and **Add New Ticket** pages.
+2. Observe internal analysis (topic, sentiment, priority) for tickets.
+3. Click **Answer** to get RAG-generated answers with citations.
+4. Provide feedback by marking tickets as **Resolved** or **Reroute to Team**.
+5. All updates are automatically stored in JSON files in the `analysis/` folder.
+
+### Notes
+
+* The system is fully reproducible using the pushed JSON KBs and prebuilt FAISS indices.
+* Only the relevant KB (Developer or Documentation) is queried for each ticket.
+* Feedback loop allows human-in-the-loop verification and ensures traceability.
 ---
+
 
 ## 🚀 Deployment
 
